@@ -5,7 +5,8 @@ export type ResourceType =
   | 'WIFI_OUTLET'
   | 'SHELTER'
   | 'FOOD'
-  | 'CHURCH';
+  | 'BUS_STOP'
+  | 'HOSPITAL';
 
 export interface ResourceHours {
   monday?: string;

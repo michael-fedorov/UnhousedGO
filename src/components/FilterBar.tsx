@@ -15,7 +15,8 @@ const CATEGORY_CONFIG: Record<ResourceType, CategoryConfig> = {
   WIFI_OUTLET: { iconName: 'wifi', label: 'WiFi/Outlets' },
   SHELTER: { iconName: 'home', label: 'Shelters' },
   FOOD: { iconName: 'restaurant', label: 'Food' },
-  CHURCH: { iconName: 'church', label: 'Churches' },
+  BUS_STOP: { iconName: 'directions-bus', label: 'Bus Stops' },
+  HOSPITAL: { iconName: 'local-hospital', label: 'Hospitals' },
 };
 
 const ALL_TYPES: ResourceType[] = [
@@ -25,7 +26,8 @@ const ALL_TYPES: ResourceType[] = [
   'WIFI_OUTLET',
   'SHELTER',
   'FOOD',
-  'CHURCH',
+  'BUS_STOP',
+  'HOSPITAL',
 ];
 
 interface FilterBarProps {

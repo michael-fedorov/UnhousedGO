@@ -1,71 +1,288 @@
-// TODO: Replace placeholder layer IDs once Glendale GIS catalog is audited
+import type { Resource, ResourceType } from '../types/Resource';
 
-import type { Resource } from '../types/Resource';
+const GIS_BASE = 'https://gismap.glendaleca.gov/arcgis/rest/services';
 
-// TODO: Source this from env via react-native-dotenv once configured
-const GIS_BASE_URL = 'https://gismap.glendaleca.gov/arcgis/rest/services';
+// ---------------------------------------------------------------------------
+// Internal ArcGIS response types
+// ---------------------------------------------------------------------------
 
-/**
- * Generic ArcGIS REST layer fetcher.
- * Queries a feature layer and maps features to Resource objects.
- * Returns an empty array on any network or parse error.
- */
-export async function fetchGisLayer(
-  serviceUrl: string,
-  layerId: number,
-  where: string = '1=1',
-): Promise<Resource[]> {
-  const query = encodeURIComponent(where);
-  const url = `${serviceUrl}/${layerId}/query?where=${query}&outFields=*&f=json&resultRecordCount=200`;
+interface ArcGISAttributes {
+  OBJECTID?: number;
+  [key: string]: unknown;
+}
 
+interface PointGeometry {
+  x: number;
+  y: number;
+}
+
+interface PolygonGeometry {
+  rings: number[][][];
+}
+
+interface ArcGISFeature {
+  attributes: ArcGISAttributes;
+  geometry: PointGeometry | PolygonGeometry;
+}
+
+interface ArcGISResponse {
+  features?: ArcGISFeature[];
+  error?: { message: string; code: number };
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+async function queryLayer(serviceUrl: string, layerId: number): Promise<ArcGISFeature[]> {
+  const url =
+    `${serviceUrl}/${layerId}/query` +
+    `?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=json&resultRecordCount=200`;
+
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status} from ${url}`);
+
+  const json: ArcGISResponse = await res.json();
+  if (json.error) throw new Error(`GIS error ${json.error.code}: ${json.error.message}`);
+
+  return json.features ?? [];
+}
+
+function buildAddress(...parts: (string | number | null | undefined)[]): string | undefined {
+  const joined = parts.filter((p) => p != null && p !== '').join(' ').trim();
+  return joined || undefined;
+}
+
+// Average all vertices of the outer ring to get the polygon centroid.
+function ringCentroid(ring: number[][]): [number, number] {
+  const sumX = ring.reduce((s, p) => s + p[0], 0);
+  const sumY = ring.reduce((s, p) => s + p[1], 0);
+  return [sumX / ring.length, sumY / ring.length];
+}
+
+function asString(val: unknown): string {
+  return val != null ? String(val) : '';
+}
+
+// ---------------------------------------------------------------------------
+// Libraries  →  WIFI_OUTLET
+// URL: Common/Libraries/FeatureServer/0
+// Fields: NAME, ST_NUM, ST_DIR, ST_NAME, ST_TYPE
+// ---------------------------------------------------------------------------
+
+export async function fetchLibraries(): Promise<Resource[]> {
   try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      console.warn(`[gisApi] fetchGisLayer: HTTP ${response.status} for ${url}`);
-      return [];
-    }
-    const json = await response.json();
-    if (!json.features || !Array.isArray(json.features)) {
-      console.warn('[gisApi] fetchGisLayer: unexpected response shape', json);
-      return [];
-    }
-    // Caller is responsible for mapping raw features to Resource[]
-    // This generic helper returns an empty array until field mappings are known
-    console.log(`[gisApi] fetchGisLayer: received ${json.features.length} features from layer ${layerId}`);
-    return [];
-  } catch (error) {
-    console.error('[gisApi] fetchGisLayer error:', error);
+    const features = await queryLayer(`${GIS_BASE}/Common/Libraries/FeatureServer`, 0);
+
+    return features.flatMap((f): Resource[] => {
+      const a = f.attributes;
+      const geom = f.geometry as PointGeometry;
+      if (!geom?.x || !geom?.y) return [];
+
+      const address = buildAddress(a.ST_NUM, a.ST_DIR, a.ST_NAME, a.ST_TYPE);
+
+      return [
+        {
+          id: `gis-library-${a.OBJECTID ?? Math.random()}`,
+          name: asString(a.NAME) || 'Glendale Library',
+          type: 'WIFI_OUTLET' as ResourceType,
+          coordinates: [geom.x, geom.y],
+          address,
+          notes: 'Free WiFi, public computers, and power outlets. Climate-controlled.',
+        },
+      ];
+    });
+  } catch (err) {
+    console.error('[gisApi] fetchLibraries failed:', err);
     return [];
   }
 }
 
-/**
- * Fetch public restroom locations from Glendale GIS.
- * TODO: Identify the correct service path and layer ID from the GIS catalog.
- */
+// ---------------------------------------------------------------------------
+// Parks  →  RESTROOM
+// URL: Common/Parks/FeatureServer/0
+// Fields: NAME_ALF, NAMEA_ALF  |  Geometry: Polygon
+// No dedicated restroom or water fountain layer exists in the Glendale GIS
+// catalog — parks are used as the best available proxy.
+// ---------------------------------------------------------------------------
+
+export async function fetchParks(): Promise<Resource[]> {
+  try {
+    const features = await queryLayer(`${GIS_BASE}/Common/Parks/FeatureServer`, 0);
+
+    return features.flatMap((f): Resource[] => {
+      const a = f.attributes;
+      const geom = f.geometry as PolygonGeometry;
+      if (!geom?.rings?.[0]?.length) return [];
+
+      const [lng, lat] = ringCentroid(geom.rings[0]);
+      const address = a.NAMEA_ALF ? asString(a.NAMEA_ALF) : undefined;
+
+      return [
+        {
+          id: `gis-park-${a.OBJECTID ?? Math.random()}`,
+          name: asString(a.NAME_ALF) || 'Glendale Park',
+          type: 'RESTROOM' as ResourceType,
+          coordinates: [lng, lat],
+          address,
+          notes: 'Public park. Restrooms and water fountains may be available — amenities vary by location.',
+        },
+      ];
+    });
+  } catch (err) {
+    console.error('[gisApi] fetchParks failed:', err);
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Bus Stops  →  BUS_STOP
+// URL: Common/GlendaleBeeline_BusStops/FeatureServer/0
+// Fields: Stop_Numbe, Route, On_Street, At_Street
+// ---------------------------------------------------------------------------
+
+export async function fetchBusStops(): Promise<Resource[]> {
+  try {
+    const features = await queryLayer(`${GIS_BASE}/Common/GlendaleBeeline_BusStops/FeatureServer`, 0);
+
+    return features.flatMap((f): Resource[] => {
+      const a = f.attributes;
+      const geom = f.geometry as PointGeometry;
+      if (!geom?.x || !geom?.y) return [];
+
+      const stopNumbe = a.Stop_Numbe as number | null | undefined;
+      const name = stopNumbe != null ? `Stop ${Math.round(stopNumbe)}` : 'Bus Stop';
+
+      const onStreet = asString(a.On_Street);
+      const atStreet = asString(a.At_Street);
+      const addressParts = [onStreet, atStreet].filter((p) => p !== '');
+      const address = addressParts.length > 0
+        ? `${addressParts[0]} at ${addressParts[1] ?? ''}`.trim()
+        : undefined;
+
+      const route = asString(a.Route);
+      const notes = route ? `Routes: ${route}` : undefined;
+
+      return [
+        {
+          id: `gis-busstop-${a.OBJECTID ?? Math.random()}`,
+          name,
+          type: 'BUS_STOP' as ResourceType,
+          coordinates: [geom.x, geom.y],
+          address,
+          notes,
+        },
+      ];
+    });
+  } catch (err) {
+    console.error('[gisApi] fetchBusStops failed:', err);
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Hospitals  →  HOSPITAL
+// URL: Common/GlendaleHospitals/FeatureServer/0
+// Fields: NAME, ST_NUM, ST_DIR, ST_NAME, ST_TYPE
+// ---------------------------------------------------------------------------
+
+export async function fetchHospitals(): Promise<Resource[]> {
+  try {
+    const features = await queryLayer(`${GIS_BASE}/Common/GlendaleHospitals/FeatureServer`, 0);
+
+    return features.flatMap((f): Resource[] => {
+      const a = f.attributes;
+      const geom = f.geometry as PointGeometry;
+      if (!geom?.x || !geom?.y) return [];
+
+      const address = buildAddress(a.ST_NUM, a.ST_DIR, a.ST_NAME, a.ST_TYPE);
+
+      return [
+        {
+          id: `gis-hospital-${a.OBJECTID ?? Math.random()}`,
+          name: asString(a.NAME) || 'Hospital',
+          type: 'HOSPITAL' as ResourceType,
+          coordinates: [geom.x, geom.y],
+          address,
+          notes: 'Emergency services available 24/7.',
+        },
+      ];
+    });
+  } catch (err) {
+    console.error('[gisApi] fetchHospitals failed:', err);
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Shelters  →  SHELTER
+// Source: LA County LMS (layer 158)
+// Filters by city name (case-insensitive) OR Glendale ZIP codes so records
+// with missing/inconsistent city values are still captured.
+// Glendale ZIPs: 91201-91210
+// Fields: name, addrln1, city, state, zip, phones, hours, description
+// Geometry: esriGeometryPoint with x/y in WGS84
+// ---------------------------------------------------------------------------
+
+const GLENDALE_WHERE =
+  "UPPER(city) = 'GLENDALE' OR " +
+  "zip IN ('91201','91202','91203','91204','91205','91206','91207','91208','91209','91210')";
+
+export async function fetchShelters(): Promise<Resource[]> {
+  try {
+    const where = encodeURIComponent(GLENDALE_WHERE);
+    const url =
+      'https://public.gis.lacounty.gov/public/rest/services/LACounty_Dynamic/LMS_Data_Public/MapServer/158/query' +
+      `?where=${where}&outFields=*&returnGeometry=true&outSR=4326&f=json&resultRecordCount=200`;
+
+    console.log('[gisApi] fetchShelters → fetching:', url);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const json = await res.json() as {
+      features?: { attributes: Record<string, unknown>; geometry: { x: number; y: number } }[];
+      error?: { message: string; code: number };
+    };
+
+    if (json.error) throw new Error(`ArcGIS error ${json.error.code}: ${json.error.message}`);
+    console.log('[gisApi] fetchShelters → raw feature count:', json.features?.length ?? 0);
+
+    return (json.features ?? []).flatMap((f): Resource[] => {
+      const a = f.attributes;
+      const geom = f.geometry;
+      if (!geom?.x || !geom?.y) return [];
+
+      const addrParts = [a.addrln1, a.city, a.state, a.zip].filter(Boolean);
+      const address = addrParts.length ? addrParts.join(', ') : undefined;
+
+      return [{
+        id: `lacounty-shelter-${a.OBJECTID ?? Math.random()}`,
+        name: asString(a.name) || 'Homeless Shelter',
+        type: 'SHELTER' as ResourceType,
+        coordinates: [geom.x, geom.y],
+        address,
+        hours: a.hours ? asString(a.hours) : undefined,
+        phone: a.phones ? asString(a.phones) : undefined,
+        notes: a.description ? asString(a.description) : undefined,
+      }];
+    });
+  } catch (err) {
+    console.error('[gisApi] fetchShelters failed:', err);
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Stubs — no matching layers found in the Glendale GIS catalog
+// ---------------------------------------------------------------------------
+
 export async function fetchPublicRestrooms(): Promise<Resource[]> {
-  console.log('[gisApi] TODO: fetchPublicRestrooms — layer ID not yet identified');
-  // Example once layer is known:
-  // return fetchGisLayer(`${GIS_BASE_URL}/PublicFacilities/MapServer`, 3);
-  void GIS_BASE_URL; // suppress unused variable warning until wired up
+  // No dedicated restroom layer in the Glendale GIS catalog.
+  // Parks (fetchParks) are used as the closest proxy.
   return [];
 }
 
-/**
- * Fetch drinking fountain / water access locations from Glendale GIS.
- * TODO: Identify the correct service path and layer ID from the GIS catalog.
- */
 export async function fetchDrinkingFountains(): Promise<Resource[]> {
-  console.log('[gisApi] TODO: fetchDrinkingFountains — layer ID not yet identified');
-  return [];
-}
-
-/**
- * Fetch public library locations from Glendale GIS.
- * Libraries often have WiFi, outlets, restrooms, and climate-controlled space.
- * TODO: Identify the correct service path and layer ID from the GIS catalog.
- */
-export async function fetchLibraries(): Promise<Resource[]> {
-  console.log('[gisApi] TODO: fetchLibraries — layer ID not yet identified');
+  // No drinking fountain layer in the Glendale GIS catalog.
   return [];
 }

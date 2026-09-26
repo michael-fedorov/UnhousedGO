@@ -15,7 +15,8 @@ export const RESOURCE_COLORS: Record<ResourceType, string> = {
   WIFI_OUTLET: '#FF9800',
   SHELTER: '#4CAF50',
   FOOD: '#F44336',
-  CHURCH: '#673AB7',
+  BUS_STOP: '#009688',
+  HOSPITAL: '#E53935',
 };
 
 const RESOURCE_ICONS: Record<ResourceType, keyof typeof MaterialIcons.glyphMap> = {
@@ -25,7 +26,8 @@ const RESOURCE_ICONS: Record<ResourceType, keyof typeof MaterialIcons.glyphMap> 
   WIFI_OUTLET: 'wifi',
   SHELTER: 'home',
   FOOD: 'restaurant',
-  CHURCH: 'church',
+  BUS_STOP: 'directions-bus',
+  HOSPITAL: 'local-hospital',
 };
 
 // ---------------------------------------------------------------------------

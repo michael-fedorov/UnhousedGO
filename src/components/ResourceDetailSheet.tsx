@@ -24,7 +24,8 @@ const RESOURCE_COLORS: Record<ResourceType, string> = {
   WIFI_OUTLET: '#FF9800',
   SHELTER: '#4CAF50',
   FOOD: '#F44336',
-  CHURCH: '#673AB7',
+  BUS_STOP: '#009688',
+  HOSPITAL: '#E53935',
 };
 
 const RESOURCE_LABELS: Record<ResourceType, string> = {
@@ -34,7 +35,8 @@ const RESOURCE_LABELS: Record<ResourceType, string> = {
   WIFI_OUTLET: 'WiFi / Outlets',
   SHELTER: 'Shelter',
   FOOD: 'Food',
-  CHURCH: 'Church',
+  BUS_STOP: 'Bus Stop',
+  HOSPITAL: 'Hospital',
 };
 
 // ---------------------------------------------------------------------------
