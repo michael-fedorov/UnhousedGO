@@ -4,8 +4,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import HomeScreen from './src/screens/HomeScreen';
 
-// TODO: set from env via react-native-dotenv once configured
-MapboxGL.setAccessToken('');
+MapboxGL.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN ?? '');
 
 export default function App() {
   return (
