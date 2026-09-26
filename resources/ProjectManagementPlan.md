@@ -6,3 +6,4 @@ We may also want to provide important disaster info that homeless people would n
 
 The app should be similar in appearance to the app Pokemon GO, which is an app with a map following your current location and including "pokestops", or locations of special interest (resource points).
 
+App name: Unhoused GO

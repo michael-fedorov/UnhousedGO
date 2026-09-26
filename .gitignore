@@ -1,0 +1,7 @@
+# Environment variables
+.env
+.evn.*
+
+# Agent files
+CLAUDE.md
+.claude/
