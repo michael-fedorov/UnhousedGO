@@ -1,0 +1,52 @@
+[
+  {
+    "id": "shelter-001",
+    "name": "Ascencia Shelter",
+    "type": "SHELTER",
+    "coordinates": [-118.2551, 34.1472],
+    "address": "141 N Jackson St, Glendale, CA 91206",
+    "hours": "Mon-Sun 6pm-8am (check-in by 8pm)",
+    "phone": "(818) 246-7900",
+    "notes": "Low-barrier emergency shelter. Accepts walk-ins when beds available. Pet-friendly rooms limited."
+  },
+  {
+    "id": "shelter-002",
+    "name": "Union Rescue Mission – Glendale Outreach",
+    "type": "SHELTER",
+    "coordinates": [-118.2478, 34.1389],
+    "address": "623 W Broadway, Glendale, CA 91204",
+    "hours": "Mon-Sun 5pm-7am",
+    "phone": "(213) 347-6300",
+    "notes": "Overflow shelter beds available during winter months. Referral through 211 recommended."
+  },
+  {
+    "id": "church-001",
+    "name": "First United Methodist Church",
+    "type": "CHURCH",
+    "coordinates": [-118.2563, 34.1451],
+    "address": "222 S Louise St, Glendale, CA 91205",
+    "hours": "Wed 9am-12pm (food pantry), Sun 10am-12pm (fellowship meal)",
+    "phone": "(818) 244-7133",
+    "notes": "Offers hot meals on Sundays after service. Food pantry available Wednesdays. No ID required."
+  },
+  {
+    "id": "church-002",
+    "name": "Glendale Community Church of God",
+    "type": "CHURCH",
+    "coordinates": [-118.2612, 34.1509],
+    "address": "4910 San Fernando Rd, Glendale, CA 91204",
+    "hours": "Tue & Thu 10am-2pm (resource center)",
+    "phone": "(818) 243-5555",
+    "notes": "Provides hygiene kits, socks, and clothing referrals. Spanish and Armenian spoken."
+  },
+  {
+    "id": "shelter-003",
+    "name": "Salvation Army Glendale Corps",
+    "type": "SHELTER",
+    "coordinates": [-118.2497, 34.1433],
+    "address": "320 W Colorado St, Glendale, CA 91204",
+    "hours": "Mon-Fri 8am-5pm (social services); emergency lodging by referral",
+    "phone": "(818) 246-4886",
+    "notes": "Case management and emergency financial assistance available. Call ahead for shelter referral."
+  }
+]
