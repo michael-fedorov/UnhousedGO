@@ -52,6 +52,23 @@ const DisasterAlertIcon: React.FC<DisasterAlertIconProps> = ({ status }) => {
 
   const backgroundColor = getBackgroundColor(status);
 
+  // Human-readable label for wildfire zone codes
+  function wildfireLabel(w: string | null): string {
+    if (!w || w === 'NonWildland') return 'No wildfire hazard';
+    if (w === 'Very High') return 'Very High Risk';
+    if (w === 'High') return 'High Risk';
+    if (w === 'Moderate') return 'Moderate Risk';
+    return w;
+  }
+
+  // Human-readable label for FEMA flood zone codes
+  function floodLabel(zone: string | null, isSFHA: boolean): string {
+    if (!zone) return 'No flood hazard';
+    if (isSFHA) return `Zone ${zone} — High Risk Area`;
+    if (zone === 'X') return 'Zone X — Minimal Risk';
+    return `Zone ${zone}`;
+  }
+
   const wildfireColor =
     status.wildfire === 'Very High'
       ? '#D32F2F'
@@ -103,7 +120,7 @@ const DisasterAlertIcon: React.FC<DisasterAlertIconProps> = ({ status }) => {
               <Text style={styles.hazardEmoji}>🔥</Text>
               <Text style={styles.hazardLabel}>Wildfire:</Text>
               <Text style={[styles.hazardValue, { color: wildfireColor }]}>
-                {status.wildfire ?? 'No hazard'}
+                {wildfireLabel(status.wildfire)}
               </Text>
             </View>
 
@@ -111,7 +128,7 @@ const DisasterAlertIcon: React.FC<DisasterAlertIconProps> = ({ status }) => {
               <Text style={styles.hazardEmoji}>🌊</Text>
               <Text style={styles.hazardLabel}>Flood zone:</Text>
               <Text style={[styles.hazardValue, { color: floodColor }]}>
-                {status.floodZone ?? 'No flood hazard'}
+                {floodLabel(status.floodZone, status.isFloodHazardArea)}
               </Text>
             </View>
 

@@ -88,15 +88,12 @@ export async function fetchHazardsAtLocation(lat: number, lng: number): Promise<
     const faultZone = faultFeatures.length > 0;
     const liquefaction = liquefactionFeatures.length > 0;
 
+    // Zone X (no SFHA flag) = FEMA minimal-risk zone — treat as safe.
+    // Only elevate level for zones that carry real risk.
     let level: HazardStatus['level'] = 'safe';
     if (wildfire === 'Very High' || isFloodHazardArea || faultZone) {
       level = 'danger';
-    } else if (
-      wildfire === 'High' ||
-      wildfire === 'Moderate' ||
-      liquefaction ||
-      (floodZone !== null && !isFloodHazardArea)
-    ) {
+    } else if (wildfire === 'High' || wildfire === 'Moderate' || liquefaction) {
       level = 'moderate';
     }
 

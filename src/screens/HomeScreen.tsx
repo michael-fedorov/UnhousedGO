@@ -48,6 +48,18 @@ const MAX_ZOOM = 20;
 // a pan rather than a pinch-to-zoom.
 const PAN_THRESHOLD = 0.0001;
 
+// Higher number = rendered last = appears in front of lower-priority markers.
+const MARKER_PRIORITY: Record<ResourceType, number> = {
+  BUS_STOP:    0,
+  RESTROOM:    0,
+  WATER:       1,
+  SHOWER:      1,
+  WIFI_OUTLET: 2,
+  HOSPITAL:    3,
+  FOOD:        4,
+  SHELTER:     4,
+};
+
 const ALL_FILTER_TYPES: ResourceType[] = [
   'RESTROOM',
   'WATER',
@@ -210,7 +222,9 @@ const HomeScreen: React.FC = () => {
     });
   }, []);
 
-  const visibleResources = resources.filter((r) => activeFilters.includes(r.type));
+  const visibleResources = resources
+    .filter((r) => activeFilters.includes(r.type))
+    .sort((a, b) => MARKER_PRIORITY[a.type] - MARKER_PRIORITY[b.type]);
 
   return (
     <BottomSheetModalProvider>
