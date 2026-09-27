@@ -1,4 +1,4 @@
-import { fetchLibraries, fetchParks, fetchBusStops, fetchHospitals, fetchShelters } from './gisApi';
+import { fetchLibraries, fetchParks, fetchBusStops, fetchHospitals, fetchShelters, fetchFoodBanks } from './gisApi';
 import type { Resource } from '../types/Resource';
 
 // Use allSettled so a single failing endpoint never wipes out the rest.
@@ -9,9 +9,10 @@ export async function fetchAllResources(): Promise<Resource[]> {
     fetchParks(),
     fetchBusStops(),
     fetchHospitals(),
+    fetchFoodBanks(),
   ]);
 
-  const labels = ['shelters', 'libraries', 'parks', 'busStops', 'hospitals'];
+  const labels = ['shelters', 'libraries', 'parks', 'busStops', 'hospitals', 'foodBanks'];
   const all: Resource[] = [];
 
   results.forEach((result, i) => {

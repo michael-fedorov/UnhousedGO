@@ -273,6 +273,72 @@ export async function fetchShelters(): Promise<Resource[]> {
 }
 
 // ---------------------------------------------------------------------------
+// Food Banks  →  FOOD
+// Source: LA County Food Distribution sites
+// URL: services.arcgis.com/.../Food_Distribution_chp/FeatureServer/0
+// Fields: food_distrib_name, food_distrib_address, food_distrib_city,
+//         food_distrib_zipcode (integer), food_distrib_latitude/longitude
+// Geometry: esriGeometryPoint
+// ---------------------------------------------------------------------------
+
+// Names come in ALL-CAPS — convert to Title Case for readability.
+function toTitleCase(str: string): string {
+  return str
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+const FOOD_GLENDALE_WHERE =
+  "UPPER(food_distrib_city) = 'GLENDALE' OR " +
+  'food_distrib_zipcode IN (91201,91202,91203,91204,91205,91206,91207,91208,91209,91210)';
+
+export async function fetchFoodBanks(): Promise<Resource[]> {
+  try {
+    const where = encodeURIComponent(FOOD_GLENDALE_WHERE);
+    const url =
+      'https://services.arcgis.com/RmCCgQtiZLDCtblq/ArcGIS/rest/services/Food_Distribution_chp/FeatureServer/0/query' +
+      `?where=${where}&outFields=*&returnGeometry=true&outSR=4326&f=json&resultRecordCount=200`;
+
+    console.log('[gisApi] fetchFoodBanks → fetching');
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const json = await res.json() as {
+      features?: { attributes: Record<string, unknown>; geometry: { x: number; y: number } }[];
+      error?: { message: string; code: number };
+    };
+    if (json.error) throw new Error(`ArcGIS error ${json.error.code}: ${json.error.message}`);
+    console.log('[gisApi] fetchFoodBanks → raw count:', json.features?.length ?? 0);
+
+    return (json.features ?? []).flatMap((f): Resource[] => {
+      const a = f.attributes;
+      const geom = f.geometry;
+      if (!geom?.x || !geom?.y) return [];
+
+      const rawName = asString(a.food_distrib_name);
+      const name = toTitleCase(rawName) || 'Food Bank';
+
+      const street = asString(a.food_distrib_address);
+      const city = asString(a.food_distrib_city);
+      const zip = a.food_distrib_zipcode != null ? String(a.food_distrib_zipcode) : '';
+      const address = [street, city, zip].filter(Boolean).join(', ') || undefined;
+
+      return [{
+        id: `food-${a.OBJECTID ?? Math.random()}`,
+        name,
+        type: 'FOOD' as ResourceType,
+        coordinates: [geom.x, geom.y],
+        address,
+        notes: 'Food distribution site. Contact location directly for current schedule.',
+      }];
+    });
+  } catch (err) {
+    console.error('[gisApi] fetchFoodBanks failed:', err);
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Stubs — no matching layers found in the Glendale GIS catalog
 // ---------------------------------------------------------------------------
 
