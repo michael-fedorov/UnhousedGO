@@ -46,6 +46,7 @@ async function queryHazardPoint(
 }
 
 export async function fetchHazardsAtLocation(lat: number, lng: number): Promise<HazardStatus> {
+  console.log(`[hazardApi] fetching hazards at (${lat.toFixed(4)}, ${lng.toFixed(4)})`);
   try {
     const [wildfireFeatures, floodFeatures, faultFeatures, liquefactionFeatures] =
       await Promise.all([
@@ -99,6 +100,7 @@ export async function fetchHazardsAtLocation(lat: number, lng: number): Promise<
       level = 'moderate';
     }
 
+    console.log(`[hazardApi] result → level=${level} wildfire=${wildfire} flood=${floodZone} fault=${faultZone} liq=${liquefaction}`);
     return {
       level,
       loading: false,

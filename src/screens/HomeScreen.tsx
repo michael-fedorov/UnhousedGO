@@ -22,7 +22,23 @@ import ResourceDetailSheet from '../components/ResourceDetailSheet';
 // Constants
 // ---------------------------------------------------------------------------
 
+// Glendale City Hall — 613 E Broadway, Glendale CA 91206
 const DEFAULT_CENTER: [number, number] = [-118.2551, 34.1425];
+
+// Ignore GPS fixes that are more than ~1° (~100 km) from Glendale.
+// This prevents the simulator's default San Francisco location from
+// hijacking the camera. On a real device in/near LA it passes fine.
+const GLENDALE_LAT = 34.1425;
+const GLENDALE_LNG = -118.2551;
+const MAX_DISTANCE_DEG = 1.0;
+
+function isNearGlendale(lat: number, lng: number): boolean {
+  return (
+    Math.abs(lat - GLENDALE_LAT) < MAX_DISTANCE_DEG &&
+    Math.abs(lng - GLENDALE_LNG) < MAX_DISTANCE_DEG
+  );
+}
+
 const INITIAL_ZOOM = 14;
 const FOLLOW_ZOOM = 15;
 const MIN_ZOOM = 8;
@@ -70,11 +86,19 @@ const HomeScreen: React.FC = () => {
   }, []);
 
   // Camera control — fly to user location imperatively.
-  // After the initial fix, following only tracks the center coordinate so the
-  // user can freely zoom in/out without being snapped back to FOLLOW_ZOOM.
+  // Ignores GPS fixes far from Glendale (e.g. the iOS Simulator's default
+  // San Francisco location). After the initial fix, following only updates
+  // the center so the user can zoom freely without being snapped back.
   useEffect(() => {
     if (!location) return;
-    const coords: [number, number] = [location.coords.longitude, location.coords.latitude];
+    const { latitude, longitude } = location.coords;
+
+    if (!isNearGlendale(latitude, longitude)) {
+      console.log('[HomeScreen] GPS fix outside Glendale bounds — ignoring for camera');
+      return;
+    }
+
+    const coords: [number, number] = [longitude, latitude];
 
     if (!hasInitialFix.current) {
       hasInitialFix.current = true;
@@ -87,7 +111,6 @@ const HomeScreen: React.FC = () => {
         animationMode: 'flyTo',
       });
     } else if (isFollowingUser) {
-      // Only move the center — preserve whatever zoom the user has set
       cameraRef.current?.setCamera({
         centerCoordinate: coords,
         animationDuration: 500,
@@ -96,18 +119,24 @@ const HomeScreen: React.FC = () => {
     }
   }, [location, isFollowingUser]);
 
-  // Fetch hazards when location changes significantly (~500 m threshold)
+  // Fetch hazards at current location, falling back to Glendale City Hall.
+  // GPS fixes outside the Glendale area (e.g. simulator default SF location)
+  // are ignored so the hazard query stays meaningful.
   useEffect(() => {
-    if (!location) return;
-    const { latitude, longitude } = location.coords;
+    const rawLat = location?.coords.latitude;
+    const rawLng = location?.coords.longitude;
+    const useGPS = rawLat != null && rawLng != null && isNearGlendale(rawLat, rawLng);
+    const lat = useGPS ? rawLat! : DEFAULT_CENTER[1];
+    const lng = useGPS ? rawLng! : DEFAULT_CENTER[0];
+
     const last = lastHazardFetchCoords.current;
     const moved =
       !last ||
-      Math.abs(last[0] - longitude) > 0.005 ||
-      Math.abs(last[1] - latitude) > 0.005;
+      Math.abs(last[0] - lng) > 0.005 ||
+      Math.abs(last[1] - lat) > 0.005;
     if (!moved) return;
-    lastHazardFetchCoords.current = [longitude, latitude];
-    fetchHazardsAtLocation(latitude, longitude).then(setHazardStatus);
+    lastHazardFetchCoords.current = [lng, lat];
+    fetchHazardsAtLocation(lat, lng).then(setHazardStatus);
   }, [location]);
 
   const handleToggleFilter = useCallback((type: ResourceType) => {

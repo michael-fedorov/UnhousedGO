@@ -28,6 +28,12 @@ export function useLocation(): UseLocationResult {
         setPermissionGranted(true);
         setError(null);
 
+        // Get an immediate fix so callers don't wait for the first movement event.
+        const initial = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        setLocation(initial);
+
         subscription = await Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.Balanced,
